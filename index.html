@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amor Medical — EMR Platform v3.2</title>
+<title>Amor Medical — EMR Platform v3.3</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -200,10 +200,11 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="nav-item" onclick="navigate('labs')" data-nav="labs"><span class="icon">🔬</span><span class="nav-label">Labs</span></div>
       <div class="nav-item" onclick="navigate('integrations')" data-nav="integrations"><span class="icon">🔌</span><span class="nav-label">Integrations</span></div>
       <div class="nav-item" onclick="navigate('calculators')" data-nav="calculators"><span class="icon">🧮</span><span class="nav-label">Calculators</span></div>
+      <div class="nav-item" onclick="navigate('referrals')" data-nav="referrals"><span class="icon">🔗</span><span class="nav-label">Referrals</span></div>
       <div class="nav-item" onclick="navigate('credentialing')" data-nav="credentialing"><span class="icon">📜</span><span class="nav-label">Credentialing</span></div>
       <div class="nav-item" onclick="navigate('settings')" data-nav="settings"><span class="icon">⚙️</span><span class="nav-label">Settings</span></div>
     </div>
-    <div class="sidebar-footer"><span>Amor EMR v3.2</span> 💙</div>
+    <div class="sidebar-footer"><span>Amor EMR v3.3</span> 💙</div>
   </nav>
   <div class="main">
     <div class="topbar">
@@ -279,6 +280,12 @@ function seedDB(){
     noteTypes:['SOAP Note','H&P (History & Physical)','Progress Note','Follow-Up','Annual Physical','New Problem','Procedure Note','Consultation','Discharge Summary','Telehealth Visit','Phone Encounter','Pre-Op Evaluation','Post-Op Follow-Up'],
     encounterTypes:['in-office','telehealth','phone'],
     users:[{id:genId(),name:'Admin User',email:'admin@amormedical.com',role:'admin',createdAt:new Date().toISOString()}],
+    referrals:[
+      {id:genId(),patientId:ptIds[0],fromProviderId:pvIds[3],fromPracticeId:prIds[2],toProviderId:pvIds[2],toPracticeId:prIds[2],toSpecialty:'Endocrinology',reason:'Diabetes management, A1C elevated',urgency:'routine',status:'completed',appointmentDate:'2026-03-20',appointmentStatus:'completed',outcome:'Patient seen, started on Ozempic, follow-up 3 months',createdAt:'2026-03-01T10:00:00Z',completedAt:'2026-03-20T16:00:00Z'},
+      {id:genId(),patientId:ptIds[1],fromProviderId:pvIds[0],fromPracticeId:prIds[0],toProviderId:pvIds[2],toPracticeId:prIds[2],toSpecialty:'Endocrinology',reason:'Pre-diabetes screening, BMI 32',urgency:'routine',status:'scheduled',appointmentDate:'2026-03-28',appointmentStatus:'scheduled',outcome:'',createdAt:'2026-03-18T14:00:00Z'},
+      {id:genId(),patientId:ptIds[2],fromProviderId:pvIds[2],fromPracticeId:prIds[2],toProviderId:pvIds[0],toPracticeId:prIds[0],toSpecialty:'Orthopedics',reason:'Shoulder pain evaluation',urgency:'routine',status:'sent',appointmentDate:'',appointmentStatus:'pending',outcome:'',createdAt:'2026-03-25T09:00:00Z'}
+    ],
+    specialties:['Primary Care','Endocrinology','Cardiology','Orthopedics','Neurology','Gastroenterology','Pulmonology','Nephrology','Rheumatology','Dermatology','Psychiatry','OB/GYN','Urology','Ophthalmology','ENT','Pain Management','Physical Therapy','Podiatry'],
     medications:[
       {name:'Metformin',doses:['500mg','850mg','1000mg'],routes:['Oral']},{name:'Lisinopril',doses:['5mg','10mg','20mg','40mg'],routes:['Oral']},{name:'Amlodipine',doses:['2.5mg','5mg','10mg'],routes:['Oral']},{name:'Atorvastatin',doses:['10mg','20mg','40mg','80mg'],routes:['Oral']},{name:'Levothyroxine',doses:['25mcg','50mcg','75mcg','88mcg','100mcg','112mcg','125mcg','137mcg','150mcg'],routes:['Oral']},{name:'Omeprazole',doses:['20mg','40mg'],routes:['Oral']},{name:'Losartan',doses:['25mg','50mg','100mg'],routes:['Oral']},{name:'Gabapentin',doses:['100mg','300mg','600mg','800mg'],routes:['Oral']},{name:'Hydrochlorothiazide',doses:['12.5mg','25mg','50mg'],routes:['Oral']},{name:'Sertraline',doses:['25mg','50mg','100mg','150mg','200mg'],routes:['Oral']},{name:'Fluoxetine',doses:['10mg','20mg','40mg','60mg'],routes:['Oral']},{name:'Escitalopram',doses:['5mg','10mg','20mg'],routes:['Oral']},{name:'Prednisone',doses:['5mg','10mg','20mg','50mg'],routes:['Oral']},{name:'Albuterol',doses:['90mcg/inh'],routes:['Inhalation']},{name:'Insulin Glargine',doses:['100units/mL'],routes:['Subcutaneous']},{name:'Insulin Lispro',doses:['100units/mL'],routes:['Subcutaneous']},{name:'Empagliflozin',doses:['10mg','25mg'],routes:['Oral']},{name:'Semaglutide',doses:['0.25mg','0.5mg','1mg','2mg'],routes:['Subcutaneous']},{name:'Dulaglutide',doses:['0.75mg','1.5mg','3mg','4.5mg'],routes:['Subcutaneous']},{name:'Sitagliptin',doses:['25mg','50mg','100mg'],routes:['Oral']},{name:'Pioglitazone',doses:['15mg','30mg','45mg'],routes:['Oral']},{name:'Glipizide',doses:['5mg','10mg'],routes:['Oral']},{name:'Rosuvastatin',doses:['5mg','10mg','20mg','40mg'],routes:['Oral']},{name:'Simvastatin',doses:['10mg','20mg','40mg'],routes:['Oral']},{name:'Warfarin',doses:['1mg','2mg','2.5mg','5mg','7.5mg','10mg'],routes:['Oral']},{name:'Apixaban',doses:['2.5mg','5mg'],routes:['Oral']},{name:'Rivaroxaban',doses:['10mg','15mg','20mg'],routes:['Oral']},{name:'Clopidogrel',doses:['75mg'],routes:['Oral']},{name:'Aspirin',doses:['81mg','325mg'],routes:['Oral']},{name:'Naproxen',doses:['250mg','500mg'],routes:['Oral']},{name:'Ibuprofen',doses:['200mg','400mg','600mg','800mg'],routes:['Oral']},{name:'Acetaminophen',doses:['325mg','500mg','650mg'],routes:['Oral']},{name:'Tramadol',doses:['50mg','100mg'],routes:['Oral']},{name:'Cyclobenzaprine',doses:['5mg','10mg'],routes:['Oral']},{name:'Meloxicam',doses:['7.5mg','15mg'],routes:['Oral']},{name:'Sumatriptan',doses:['25mg','50mg','100mg'],routes:['Oral']},{name:'Topiramate',doses:['25mg','50mg','100mg','200mg'],routes:['Oral']},{name:'Amoxicillin',doses:['250mg','500mg','875mg'],routes:['Oral']},{name:'Azithromycin',doses:['250mg','500mg'],routes:['Oral']},{name:'Ciprofloxacin',doses:['250mg','500mg','750mg'],routes:['Oral']},{name:'Doxycycline',doses:['50mg','100mg'],routes:['Oral']},{name:'Cephalexin',doses:['250mg','500mg'],routes:['Oral']},{name:'Metronidazole',doses:['250mg','500mg'],routes:['Oral']},{name:'Fluconazole',doses:['150mg','200mg'],routes:['Oral']},{name:'Montelukast',doses:['4mg','5mg','10mg'],routes:['Oral']},{name:'Cetirizine',doses:['5mg','10mg'],routes:['Oral']},{name:'Loratadine',doses:['10mg'],routes:['Oral']},{name:'Pantoprazole',doses:['20mg','40mg'],routes:['Oral']},{name:'Famotidine',doses:['20mg','40mg'],routes:['Oral']},{name:'Ondansetron',doses:['4mg','8mg'],routes:['Oral','IV']},{name:'Testosterone Cypionate',doses:['100mg/mL','200mg/mL'],routes:['Intramuscular']},{name:'Estradiol',doses:['0.5mg','1mg','2mg'],routes:['Oral','Transdermal']},{name:'Progesterone',doses:['100mg','200mg'],routes:['Oral']},{name:'Methylprednisolone',doses:['4mg'],routes:['Oral']},{name:'Ketorolac',doses:['10mg'],routes:['Oral','IM','IV']}
     ]
@@ -334,6 +341,7 @@ function render(){
     case 'labs': renderLabs(c); break;
     case 'integrations': renderIntegrations(c); break;
     case 'calculators': renderCalculators(c); break;
+    case 'referrals': renderReferrals(c); break;
     case 'credentialing': renderCredentialing(c); break;
     case 'settings': renderSettings(c); break;
   }
@@ -477,6 +485,7 @@ function renderPatientDetail(c){
       <div class="spacer"></div>
       <button class="btn btn-primary btn-sm" onclick="showNewEncounterModal('${p.id}')">+ Encounter</button>
       <button class="btn btn-accent btn-sm" onclick="showNewPrescriptionModal('${p.id}')">+ Rx</button>
+      <button class="btn btn-purple btn-sm" onclick="showNewReferralModal('${p.id}')">🔗 Refer</button>
       <button class="btn btn-ghost btn-sm" onclick="editPatientModal('${p.id}')">✏️ Edit</button>
       <button class="btn btn-ghost btn-sm" onclick="syncPatientToRicoCloud('${p.id}')" title="Sync to Rico Cloud">☁️</button>
     </div>
@@ -1727,6 +1736,302 @@ function useGeneratedSOAP(soap){
       window._generatedSOAP=null;
     }
   },200);
+}
+
+// ═══════ REFERRAL SYSTEM ═══════
+function renderReferrals(c){
+  setPageTitle('Referrals');
+  const sent=db.referrals?.filter(r=>r.status==='sent')||[];
+  const scheduled=db.referrals?.filter(r=>r.status==='scheduled')||[];
+  const completed=db.referrals?.filter(r=>r.status==='completed')||[];
+  const all=db.referrals||[];
+  
+  c.innerHTML=`
+    <div class="stats-grid">
+      <div class="stat-card blue"><div class="label">Pending</div><div class="value">${sent.length}</div><div class="sub">Awaiting scheduling</div></div>
+      <div class="stat-card yellow"><div class="label">Scheduled</div><div class="value">${scheduled.length}</div><div class="sub">Upcoming appointments</div></div>
+      <div class="stat-card green"><div class="label">Completed</div><div class="value">${completed.length}</div><div class="sub">This month</div></div>
+      <div class="stat-card purple"><div class="label">Total</div><div class="value">${all.length}</div><div class="sub">All referrals</div></div>
+    </div>
+    
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h3>🔗 Referral Management</h3>
+      <button class="btn btn-primary" onclick="showNewReferralModal()">+ New Referral</button>
+    </div>
+    
+    <div class="tabs">
+      <div class="tab active" onclick="filterReferrals(this,'all')">All</div>
+      <div class="tab" onclick="filterReferrals(this,'sent')">📤 Pending</div>
+      <div class="tab" onclick="filterReferrals(this,'scheduled')">📅 Scheduled</div>
+      <div class="tab" onclick="filterReferrals(this,'completed')">✅ Completed</div>
+    </div>
+    
+    <div id="referralList">${renderReferralList(all)}</div>
+    
+    <div class="section-title">📊 Referral Analytics</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="label">Avg Time to Schedule</div><div class="value" style="font-size:20px;">3.2 days</div></div>
+      <div class="stat-card"><div class="label">Completion Rate</div><div class="value" style="font-size:20px;">${all.length?(completed.length/all.length*100).toFixed(0):0}%</div></div>
+      <div class="stat-card"><div class="label">Top Referred Specialty</div><div class="value" style="font-size:16px;">Endocrinology</div></div>
+    </div>
+  `;
+}
+
+function filterReferrals(el,status){
+  el.parentElement.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  const filtered=status==='all'?(db.referrals||[]):(db.referrals||[]).filter(r=>r.status===status);
+  document.getElementById('referralList').innerHTML=renderReferralList(filtered);
+}
+
+function renderReferralList(refs){
+  if(!refs.length) return '<div class="empty-state"><div class="empty-icon">🔗</div><p>No referrals</p></div>';
+  return refs.map(r=>{
+    const p=db.patients.find(x=>x.id===r.patientId);
+    const fromPv=db.providers.find(x=>x.id===r.fromProviderId);
+    const toPv=db.providers.find(x=>x.id===r.toProviderId);
+    const statusColor=r.status==='completed'?'badge-green':r.status==='scheduled'?'badge-yellow':'badge-blue';
+    const urgencyColor=r.urgency==='stat'?'badge-red':r.urgency==='urgent'?'badge-yellow':'badge-blue';
+    return `<div class="encounter-card" onclick="openReferralDetail('${r.id}')">
+      <div class="enc-header">
+        <span class="enc-date">🔗 ${p?p.firstName+' '+p.lastName:'Patient'}</span>
+        <div><span class="badge ${urgencyColor}" style="margin-right:4px;">${r.urgency}</span><span class="badge ${statusColor}">${r.status}</span></div>
+      </div>
+      <div style="font-size:13px;margin:8px 0;">
+        <strong>${fromPv?.name||'Provider'}</strong> → <strong>${toPv?.name||r.toSpecialty}</strong>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);">${r.reason}</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:4px;">
+        ${r.appointmentDate?`📅 ${r.appointmentDate}`:'⏳ Not yet scheduled'} | Created: ${r.createdAt?.split('T')[0]||''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showNewReferralModal(patientId){
+  if(!db.referrals) db.referrals=[];
+  const patOpts=db.patients.map(p=>`<option value="${p.id}" ${p.id===patientId?'selected':''}>${p.firstName} ${p.lastName}</option>`).join('');
+  const fromPvOpts=db.providers.map(p=>`<option value="${p.id}">${p.name} — ${p.specialty}</option>`).join('');
+  const specOpts=(db.specialties||[]).map(s=>`<option>${s}</option>`).join('');
+  
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🔗 New Referral</h3>
+    <div class="form-grid">
+      <div class="form-group"><label>Patient *</label><select id="refPat">${patOpts}</select></div>
+      <div class="form-group"><label>Referring Provider *</label><select id="refFrom">${fromPvOpts}</select></div>
+      <div class="form-group"><label>Refer To Specialty *</label><select id="refSpec" onchange="updateToProviders()">${specOpts}</select></div>
+      <div class="form-group"><label>Refer To Provider</label><select id="refTo"><option value="">— Select after specialty —</option></select></div>
+      <div class="form-group"><label>Urgency *</label><select id="refUrg"><option value="routine">Routine</option><option value="urgent">Urgent (within 1 week)</option><option value="stat">STAT (within 24-48 hrs)</option></select></div>
+      <div class="form-group full"><label>Reason for Referral *</label><textarea id="refReason" rows="3" placeholder="Diagnosis, clinical question, what you need from the specialist..."></textarea></div>
+    </div>
+    
+    <div class="section-title">📅 One-Click Scheduling</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Select a provider above to see their available slots.</p>
+    <div id="providerSchedule" style="background:var(--bg-input);border-radius:8px;padding:16px;min-height:100px;">
+      <p style="color:var(--text-dim);text-align:center;">Select a specialty and provider to view availability</p>
+    </div>
+    
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="createReferral(false)">📤 Send Referral</button>
+      <button class="btn btn-accent" onclick="createReferral(true)">📅 Send & Schedule</button>
+    </div>
+  `,true);
+  
+  updateToProviders();
+}
+
+function updateToProviders(){
+  const spec=document.getElementById('refSpec').value;
+  const providers=db.providers.filter(p=>p.specialty?.toLowerCase().includes(spec.toLowerCase())||spec.toLowerCase().includes(p.specialty?.toLowerCase()));
+  const select=document.getElementById('refTo');
+  select.innerHTML='<option value="">— Any available —</option>'+providers.map(p=>`<option value="${p.id}">${p.name}</option>`).join('');
+  
+  // Show mock schedule
+  if(providers.length){
+    showProviderSchedule(providers[0].id);
+  }else{
+    document.getElementById('providerSchedule').innerHTML='<p style="color:var(--text-dim);text-align:center;">No providers found for this specialty</p>';
+  }
+  
+  select.onchange=()=>{
+    if(select.value) showProviderSchedule(select.value);
+  };
+}
+
+function showProviderSchedule(providerId){
+  const pv=db.providers.find(p=>p.id===providerId);
+  if(!pv)return;
+  
+  // Generate mock available slots for next 2 weeks
+  const slots=[];
+  const today=new Date();
+  for(let i=1;i<=14;i++){
+    const d=new Date(today);
+    d.setDate(d.getDate()+i);
+    if(d.getDay()===0||d.getDay()===6) continue; // Skip weekends
+    const dateStr=d.toISOString().split('T')[0];
+    // Random available times
+    const times=['9:00 AM','10:00 AM','11:00 AM','2:00 PM','3:00 PM','4:00 PM'];
+    const available=times.filter(()=>Math.random()>0.5);
+    if(available.length) slots.push({date:dateStr,times:available});
+  }
+  
+  document.getElementById('providerSchedule').innerHTML=`
+    <div style="font-weight:600;margin-bottom:12px;">📅 ${pv.name} — Available Slots</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;">
+      ${slots.slice(0,6).map(s=>`
+        <div style="background:var(--bg);border-radius:6px;padding:8px;">
+          <div style="font-weight:600;font-size:12px;margin-bottom:4px;">${s.date}</div>
+          ${s.times.slice(0,3).map(t=>`<button class="btn btn-ghost btn-sm" style="width:100%;margin-bottom:4px;font-size:11px;" onclick="selectReferralSlot('${s.date}','${t}')">${t}</button>`).join('')}
+        </div>
+      `).join('')}
+    </div>
+    <p style="font-size:11px;color:var(--text-dim);margin-top:8px;">Click a time slot to auto-fill appointment</p>
+  `;
+}
+
+function selectReferralSlot(date,time){
+  window._selectedRefSlot={date,time};
+  document.querySelectorAll('#providerSchedule .btn').forEach(b=>b.style.background='');
+  event.target.style.background='var(--primary)';
+  event.target.style.color='#fff';
+}
+
+function createReferral(withSchedule){
+  if(!db.referrals) db.referrals=[];
+  
+  const fromPv=db.providers.find(p=>p.id===document.getElementById('refFrom').value);
+  const toPvId=document.getElementById('refTo').value;
+  const toPv=toPvId?db.providers.find(p=>p.id===toPvId):null;
+  
+  const ref={
+    id:genId(),
+    patientId:document.getElementById('refPat').value,
+    fromProviderId:document.getElementById('refFrom').value,
+    fromPracticeId:fromPv?.practiceId||'',
+    toProviderId:toPvId||'',
+    toPracticeId:toPv?.practiceId||'',
+    toSpecialty:document.getElementById('refSpec').value,
+    reason:document.getElementById('refReason').value,
+    urgency:document.getElementById('refUrg').value,
+    status:withSchedule&&window._selectedRefSlot?'scheduled':'sent',
+    appointmentDate:window._selectedRefSlot?.date||'',
+    appointmentTime:window._selectedRefSlot?.time||'',
+    appointmentStatus:withSchedule&&window._selectedRefSlot?'scheduled':'pending',
+    outcome:'',
+    createdAt:new Date().toISOString()
+  };
+  
+  if(!ref.reason){alert('Reason for referral required');return;}
+  
+  db.referrals.push(ref);
+  saveDB();
+  window._selectedRefSlot=null;
+  closeModal();
+  
+  const p=db.patients.find(x=>x.id===ref.patientId);
+  if(withSchedule&&ref.appointmentDate){
+    alert(`✅ Referral sent & scheduled!\n\n${p?.firstName} ${p?.lastName}\n📅 ${ref.appointmentDate} at ${ref.appointmentTime}\n→ ${toPv?.name||ref.toSpecialty}`);
+  }else{
+    alert('✅ Referral sent! Awaiting scheduling.');
+  }
+  
+  render();
+}
+
+function openReferralDetail(id){
+  const r=db.referrals?.find(x=>x.id===id);
+  if(!r)return;
+  
+  const p=db.patients.find(x=>x.id===r.patientId);
+  const fromPv=db.providers.find(x=>x.id===r.fromProviderId);
+  const toPv=db.providers.find(x=>x.id===r.toProviderId);
+  
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🔗 Referral Details</h3>
+    <div style="background:var(--bg-input);border-radius:8px;padding:16px;margin-bottom:16px;">
+      <div style="font-size:18px;font-weight:600;margin-bottom:8px;">${p?p.firstName+' '+p.lastName:'Patient'}</div>
+      <div style="font-size:14px;color:var(--text-muted);">${p?.dob||''} | ${p?.phone||''}</div>
+    </div>
+    
+    <div class="form-grid" style="margin-bottom:16px;">
+      <div><strong>From:</strong><br>${fromPv?.name||'—'}<br><span style="color:var(--text-dim);font-size:12px;">${fromPv?.specialty||''}</span></div>
+      <div><strong>To:</strong><br>${toPv?.name||r.toSpecialty}<br><span style="color:var(--text-dim);font-size:12px;">${r.toSpecialty}</span></div>
+    </div>
+    
+    <div style="margin-bottom:16px;">
+      <strong>Reason:</strong>
+      <div style="background:var(--bg);padding:12px;border-radius:6px;margin-top:4px;">${r.reason}</div>
+    </div>
+    
+    <div class="form-grid" style="margin-bottom:16px;">
+      <div><strong>Urgency:</strong> <span class="badge ${r.urgency==='stat'?'badge-red':r.urgency==='urgent'?'badge-yellow':'badge-blue'}">${r.urgency}</span></div>
+      <div><strong>Status:</strong> <span class="badge ${r.status==='completed'?'badge-green':r.status==='scheduled'?'badge-yellow':'badge-blue'}">${r.status}</span></div>
+    </div>
+    
+    ${r.appointmentDate?`<div style="background:rgba(16,185,129,0.1);border:1px solid var(--accent);border-radius:8px;padding:12px;margin-bottom:16px;">
+      <strong>📅 Appointment:</strong> ${r.appointmentDate} ${r.appointmentTime||''}<br>
+      <span style="font-size:12px;color:var(--text-muted);">Status: ${r.appointmentStatus}</span>
+    </div>`:''}
+    
+    ${r.outcome?`<div style="margin-bottom:16px;"><strong>Outcome:</strong><div style="background:var(--bg);padding:12px;border-radius:6px;margin-top:4px;">${r.outcome}</div></div>`:''}
+    
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      ${r.status==='sent'?`<button class="btn btn-accent" onclick="scheduleReferral('${r.id}')">📅 Schedule</button>`:''}
+      ${r.status==='scheduled'?`<button class="btn btn-accent" onclick="completeReferral('${r.id}')">✅ Mark Complete</button>`:''}
+      ${r.status!=='completed'?`<button class="btn btn-ghost" onclick="updateReferralOutcome('${r.id}')">📝 Add Notes</button>`:''}
+    </div>
+  `,true);
+}
+
+function scheduleReferral(id){
+  const r=db.referrals?.find(x=>x.id===id);
+  if(!r)return;
+  closeModal();
+  
+  const date=prompt('Enter appointment date (YYYY-MM-DD):');
+  if(!date)return;
+  const time=prompt('Enter time (e.g., 10:00 AM):');
+  
+  r.appointmentDate=date;
+  r.appointmentTime=time||'';
+  r.appointmentStatus='scheduled';
+  r.status='scheduled';
+  saveDB();
+  render();
+  alert('✅ Referral scheduled!');
+}
+
+function completeReferral(id){
+  const r=db.referrals?.find(x=>x.id===id);
+  if(!r)return;
+  
+  const outcome=prompt('Enter outcome/notes from the visit:');
+  if(outcome===null)return;
+  
+  r.outcome=outcome;
+  r.status='completed';
+  r.appointmentStatus='completed';
+  r.completedAt=new Date().toISOString();
+  saveDB();
+  closeModal();
+  render();
+  alert('✅ Referral completed!');
+}
+
+function updateReferralOutcome(id){
+  const r=db.referrals?.find(x=>x.id===id);
+  if(!r)return;
+  
+  const outcome=prompt('Enter notes/outcome:',r.outcome||'');
+  if(outcome===null)return;
+  
+  r.outcome=outcome;
+  saveDB();
+  closeModal();
+  openReferralDetail(id);
 }
 
 // ═══════ E-PRESCRIBE PREP ═══════
