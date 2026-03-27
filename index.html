@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amor Medical — EMR Platform v3.1</title>
+<title>Amor Medical — EMR Platform v3.2</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
@@ -203,7 +203,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="nav-item" onclick="navigate('credentialing')" data-nav="credentialing"><span class="icon">📜</span><span class="nav-label">Credentialing</span></div>
       <div class="nav-item" onclick="navigate('settings')" data-nav="settings"><span class="icon">⚙️</span><span class="nav-label">Settings</span></div>
     </div>
-    <div class="sidebar-footer"><span>Amor EMR v3.1</span> 💙</div>
+    <div class="sidebar-footer"><span>Amor EMR v3.2</span> 💙</div>
   </nav>
   <div class="main">
     <div class="topbar">
@@ -358,6 +358,7 @@ function renderDashboard(c){
     <div class="btn-group" style="margin-bottom:24px;">
       <button class="btn btn-primary" onclick="showNewPatientModal()">+ New Patient</button>
       <button class="btn btn-accent" onclick="showNewEncounterModal()">+ New Encounter</button>
+      <button class="btn btn-purple" onclick="showAISOAPGenerator()">🤖 AI SOAP</button>
       <button class="btn btn-ghost" onclick="showNewPracticeModal()">+ New Practice</button>
       <button class="btn btn-ghost" onclick="showNewProviderModal()">+ New Provider</button>
     </div>
@@ -477,6 +478,7 @@ function renderPatientDetail(c){
       <button class="btn btn-primary btn-sm" onclick="showNewEncounterModal('${p.id}')">+ Encounter</button>
       <button class="btn btn-accent btn-sm" onclick="showNewPrescriptionModal('${p.id}')">+ Rx</button>
       <button class="btn btn-ghost btn-sm" onclick="editPatientModal('${p.id}')">✏️ Edit</button>
+      <button class="btn btn-ghost btn-sm" onclick="syncPatientToRicoCloud('${p.id}')" title="Sync to Rico Cloud">☁️</button>
     </div>
     <div class="tabs">${tabs.map(t=>`<div class="tab ${selectedPatientTab===t?'active':''}" onclick="selectedPatientTab='${t}';render()">${t.charAt(0).toUpperCase()+t.slice(1)}</div>`).join('')}</div>
     <div>${renderPatientTab(p)}</div>`;
@@ -808,6 +810,27 @@ function renderSettings(c){
   setPageTitle('Settings');
   c.innerHTML=`<h3 style="margin-bottom:16px;">System Settings</h3>
     <div class="form-group" style="margin-bottom:16px;max-width:300px;"><label>Current Role</label><select onchange="db.currentRole=this.value;saveDB();document.getElementById('roleBadge').textContent=this.options[this.selectedIndex].text;render();"><option value="admin" ${db.currentRole==='admin'?'selected':''}>Agency Admin</option><option value="provider" ${db.currentRole==='provider'?'selected':''}>Provider</option><option value="staff" ${db.currentRole==='staff'?'selected':''}>Staff</option></select></div>
+    
+    <div class="section-title">☁️ Rico Cloud Integration</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Sync patients with Rico Cloud (GoHighLevel) CRM.</p>
+    <div class="btn-group" style="margin-bottom:16px;">
+      <button class="btn btn-primary" onclick="showRicoCloudSettings()">⚙️ Configure Rico Cloud</button>
+      <button class="btn btn-ghost" onclick="importPatientsFromRicoCloud()">📥 Import from CRM</button>
+    </div>
+    
+    <div class="section-title">🤖 AI SOAP Generation</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Auto-generate SOAP notes from appointment transcripts using AI.</p>
+    <div class="btn-group" style="margin-bottom:16px;">
+      <button class="btn btn-purple" onclick="showAISettings()">⚙️ Configure AI</button>
+      <button class="btn btn-ghost" onclick="showAISOAPGenerator()">🤖 Generate SOAP</button>
+    </div>
+    
+    <div class="section-title">📝 E-Prescribe</div>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Electronic prescription integration status.</p>
+    <div class="btn-group" style="margin-bottom:16px;">
+      <button class="btn btn-ghost" onclick="showEPrescribeStatus()">📋 View Status</button>
+    </div>
+    
     <div class="section-title">Data Management</div>
     <div class="btn-group" style="margin-bottom:16px;">
       <button class="btn btn-danger" onclick="if(confirm('Reset all data?')){localStorage.removeItem('${DB_KEY}');seedDB();render();alert('Done!')}">🔄 Reset Demo Data</button>
@@ -1390,6 +1413,346 @@ function addPMH(id){const item=prompt('Enter past medical history item:');if(!it
 function removePMH(id,idx){const p=db.patients.find(x=>x.id===id);p.pmh.splice(idx,1);saveDB();render();}
 function addAllergy(id){const item=prompt('Enter allergy:');if(!item)return;const p=db.patients.find(x=>x.id===id);if(!p.allergies)p.allergies=[];p.allergies.push(item);saveDB();render();}
 function removeAllergy(id,idx){const p=db.patients.find(x=>x.id===id);p.allergies.splice(idx,1);saveDB();render();}
+
+// ═══════ RICO CLOUD INTEGRATION ═══════
+const RICO_CLOUD_CONFIG = {
+  apiBase: 'https://services.leadconnectorhq.com',
+  apiVersion: '2021-07-28',
+  locationId: '', // Set in settings
+  apiToken: ''    // Set in settings
+};
+
+function showRicoCloudSettings(){
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>☁️ Rico Cloud Integration</h3>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px;">Connect to Rico Cloud (GoHighLevel) for patient sync and CRM integration.</p>
+    <div class="form-group" style="margin-bottom:12px;"><label>API Token</label><input type="password" id="rcToken" value="${localStorage.getItem('ricocloud_token')||''}" placeholder="pit-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+    <div class="form-group" style="margin-bottom:12px;"><label>Location ID</label><input id="rcLocation" value="${localStorage.getItem('ricocloud_location')||''}" placeholder="xxxxxxxxxxxxxxxx"></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="testRicoCloudConnection()">🔌 Test Connection</button>
+      <button class="btn btn-accent" onclick="saveRicoCloudSettings()">💾 Save</button>
+    </div>
+    <div id="rcStatus" style="margin-top:12px;"></div>
+  `);
+}
+
+function saveRicoCloudSettings(){
+  const token=document.getElementById('rcToken').value;
+  const location=document.getElementById('rcLocation').value;
+  localStorage.setItem('ricocloud_token',token);
+  localStorage.setItem('ricocloud_location',location);
+  RICO_CLOUD_CONFIG.apiToken=token;
+  RICO_CLOUD_CONFIG.locationId=location;
+  document.getElementById('rcStatus').innerHTML='<div style="color:var(--accent);">✅ Settings saved!</div>';
+}
+
+async function testRicoCloudConnection(){
+  const token=document.getElementById('rcToken').value;
+  const location=document.getElementById('rcLocation').value;
+  if(!token||!location){
+    document.getElementById('rcStatus').innerHTML='<div style="color:var(--danger);">❌ Token and Location ID required</div>';
+    return;
+  }
+  document.getElementById('rcStatus').innerHTML='<div style="color:var(--primary);">🔄 Testing connection...</div>';
+  try{
+    const res=await fetch(`${RICO_CLOUD_CONFIG.apiBase}/contacts/?locationId=${location}&limit=1`,{
+      headers:{'Authorization':`Bearer ${token}`,'Version':RICO_CLOUD_CONFIG.apiVersion}
+    });
+    if(res.ok){
+      const data=await res.json();
+      document.getElementById('rcStatus').innerHTML=`<div style="color:var(--accent);">✅ Connected! Found ${data.meta?.total||0} contacts in CRM.</div>`;
+    }else{
+      document.getElementById('rcStatus').innerHTML=`<div style="color:var(--danger);">❌ Error: ${res.status} ${res.statusText}</div>`;
+    }
+  }catch(e){
+    document.getElementById('rcStatus').innerHTML=`<div style="color:var(--danger);">❌ Connection failed: ${e.message}</div>`;
+  }
+}
+
+async function syncPatientToRicoCloud(patientId){
+  const p=db.patients.find(x=>x.id===patientId);
+  if(!p)return;
+  const token=localStorage.getItem('ricocloud_token');
+  const location=localStorage.getItem('ricocloud_location');
+  if(!token||!location){alert('Configure Rico Cloud in Settings first');return;}
+  
+  const contactData={
+    firstName:p.firstName,
+    lastName:p.lastName,
+    email:p.email,
+    phone:p.phone,
+    address1:p.street,
+    city:p.city,
+    state:p.state,
+    postalCode:p.zip,
+    dateOfBirth:p.dob,
+    tags:['EMR-Patient'],
+    customFields:[
+      {key:'insurance',value:p.insurancePrimary||''},
+      {key:'pharmacy',value:p.pharmacy||''},
+      {key:'allergies',value:(p.allergies||[]).join(', ')},
+      {key:'mrn',value:p.id}
+    ]
+  };
+  
+  try{
+    const res=await fetch(`${RICO_CLOUD_CONFIG.apiBase}/contacts/`,{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${token}`,
+        'Version':RICO_CLOUD_CONFIG.apiVersion,
+        'Content-Type':'application/json'
+      },
+      body:JSON.stringify({...contactData,locationId:location})
+    });
+    if(res.ok){
+      alert('✅ Patient synced to Rico Cloud!');
+    }else{
+      const err=await res.json();
+      alert('❌ Sync failed: '+(err.message||res.statusText));
+    }
+  }catch(e){
+    alert('❌ Sync error: '+e.message);
+  }
+}
+
+async function importPatientsFromRicoCloud(){
+  const token=localStorage.getItem('ricocloud_token');
+  const location=localStorage.getItem('ricocloud_location');
+  if(!token||!location){alert('Configure Rico Cloud in Settings first');return;}
+  
+  try{
+    const res=await fetch(`${RICO_CLOUD_CONFIG.apiBase}/contacts/?locationId=${location}&limit=100`,{
+      headers:{'Authorization':`Bearer ${token}`,'Version':RICO_CLOUD_CONFIG.apiVersion}
+    });
+    if(!res.ok)throw new Error(res.statusText);
+    const data=await res.json();
+    const contacts=data.contacts||[];
+    let imported=0;
+    
+    contacts.forEach(c=>{
+      // Check if already exists by email or phone
+      const exists=db.patients.find(p=>p.email===c.email||p.phone===c.phone);
+      if(!exists&&c.firstName){
+        db.patients.push({
+          id:genId(),
+          firstName:c.firstName||'',
+          lastName:c.lastName||'',
+          email:c.email||'',
+          phone:c.phone||'',
+          street:c.address1||'',
+          city:c.city||'',
+          state:c.state||'',
+          zip:c.postalCode||'',
+          dob:c.dateOfBirth||'',
+          gender:'',
+          insurancePrimary:'',
+          insuranceId:'',
+          pharmacy:'',
+          allergies:[],
+          pmh:[],
+          practiceId:db.practices[0]?.id||'',
+          providerId:db.providers[0]?.id||'',
+          createdAt:new Date().toISOString(),
+          ricoCloudId:c.id
+        });
+        imported++;
+      }
+    });
+    saveDB();
+    alert(`✅ Imported ${imported} new patients from Rico Cloud!`);
+    render();
+  }catch(e){
+    alert('❌ Import failed: '+e.message);
+  }
+}
+
+// ═══════ AI SOAP GENERATION ═══════
+const AI_CONFIG = {
+  provider: 'anthropic', // or 'openai'
+  apiKey: '',
+  model: 'claude-3-haiku-20240307'
+};
+
+function showAISettings(){
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🤖 AI SOAP Generation Settings</h3>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px;">Configure AI to auto-generate SOAP notes from appointment transcriptions.</p>
+    <div class="form-group" style="margin-bottom:12px;"><label>AI Provider</label><select id="aiProvider"><option value="anthropic" ${localStorage.getItem('ai_provider')==='anthropic'?'selected':''}>Anthropic (Claude)</option><option value="openai" ${localStorage.getItem('ai_provider')==='openai'?'selected':''}>OpenAI (GPT)</option></select></div>
+    <div class="form-group" style="margin-bottom:12px;"><label>API Key</label><input type="password" id="aiKey" value="${localStorage.getItem('ai_apikey')||''}" placeholder="sk-..."></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-accent" onclick="saveAISettings()">💾 Save</button>
+    </div>
+  `);
+}
+
+function saveAISettings(){
+  localStorage.setItem('ai_provider',document.getElementById('aiProvider').value);
+  localStorage.setItem('ai_apikey',document.getElementById('aiKey').value);
+  closeModal();
+  alert('✅ AI settings saved!');
+}
+
+async function generateSOAPFromTranscript(transcript,noteType){
+  const provider=localStorage.getItem('ai_provider')||'anthropic';
+  const apiKey=localStorage.getItem('ai_apikey');
+  if(!apiKey){alert('Configure AI API key in Settings first');return null;}
+  
+  const systemPrompt=`You are a medical scribe AI. Given a transcript of a doctor-patient encounter, generate a structured SOAP note.
+
+Note Type: ${noteType||'Progress Note'}
+
+Output JSON format:
+{
+  "chiefComplaint": "Brief CC",
+  "subjective": "Patient's reported symptoms, history of present illness, review of systems...",
+  "objective": "Physical exam findings, vitals interpretation, relevant observations...",
+  "assessment": "Clinical impression, differential diagnoses, diagnosis...",
+  "plan": "Treatment plan, medications, follow-up, patient education...",
+  "icd10": ["E11.65", "I10"],
+  "cpt": "99214"
+}
+
+Be thorough but concise. Use medical terminology appropriately.`;
+
+  try{
+    let response;
+    if(provider==='anthropic'){
+      response=await fetch('https://api.anthropic.com/v1/messages',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'x-api-key':apiKey,
+          'anthropic-version':'2023-06-01'
+        },
+        body:JSON.stringify({
+          model:'claude-3-haiku-20240307',
+          max_tokens:2000,
+          system:systemPrompt,
+          messages:[{role:'user',content:`Transcript:\n\n${transcript}`}]
+        })
+      });
+      const data=await response.json();
+      const text=data.content?.[0]?.text||'';
+      const jsonMatch=text.match(/\{[\s\S]*\}/);
+      return jsonMatch?JSON.parse(jsonMatch[0]):null;
+    }else{
+      response=await fetch('https://api.openai.com/v1/chat/completions',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':`Bearer ${apiKey}`
+        },
+        body:JSON.stringify({
+          model:'gpt-4o-mini',
+          messages:[
+            {role:'system',content:systemPrompt},
+            {role:'user',content:`Transcript:\n\n${transcript}`}
+          ]
+        })
+      });
+      const data=await response.json();
+      const text=data.choices?.[0]?.message?.content||'';
+      const jsonMatch=text.match(/\{[\s\S]*\}/);
+      return jsonMatch?JSON.parse(jsonMatch[0]):null;
+    }
+  }catch(e){
+    console.error('AI generation error:',e);
+    alert('❌ AI generation failed: '+e.message);
+    return null;
+  }
+}
+
+function showAISOAPGenerator(){
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🤖 AI SOAP Note Generator</h3>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:16px;">Paste appointment transcript or recording text. AI will generate a structured SOAP note.</p>
+    <div class="form-group" style="margin-bottom:12px;"><label>Note Type</label><select id="aiNoteType">${db.noteTypes.map(n=>`<option>${n}</option>`).join('')}</select></div>
+    <div class="form-group" style="margin-bottom:12px;"><label>Transcript</label><textarea id="aiTranscript" rows="10" placeholder="Doctor: Good morning, how are you feeling today?&#10;Patient: I've been having more fatigue lately..."></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-purple" onclick="runAISOAPGeneration()">🤖 Generate SOAP</button>
+    </div>
+    <div id="aiResult" style="margin-top:16px;"></div>
+  `,true);
+}
+
+async function runAISOAPGeneration(){
+  const transcript=document.getElementById('aiTranscript').value;
+  const noteType=document.getElementById('aiNoteType').value;
+  if(!transcript){alert('Enter a transcript');return;}
+  
+  document.getElementById('aiResult').innerHTML='<div style="color:var(--primary);">🔄 Generating SOAP note with AI...</div>';
+  
+  const soap=await generateSOAPFromTranscript(transcript,noteType);
+  if(!soap){
+    document.getElementById('aiResult').innerHTML='<div style="color:var(--danger);">❌ Generation failed</div>';
+    return;
+  }
+  
+  document.getElementById('aiResult').innerHTML=`
+    <div style="background:var(--bg);padding:16px;border-radius:8px;margin-top:12px;">
+      <h4 style="margin-bottom:12px;">✅ Generated SOAP Note</h4>
+      <div class="soap-section soap-s"><div class="soap-label">S — Subjective</div><div style="padding:8px;font-size:13px;">${soap.subjective||'—'}</div></div>
+      <div class="soap-section soap-o"><div class="soap-label">O — Objective</div><div style="padding:8px;font-size:13px;">${soap.objective||'—'}</div></div>
+      <div class="soap-section soap-a"><div class="soap-label">A — Assessment</div><div style="padding:8px;font-size:13px;">${soap.assessment||'—'}</div></div>
+      <div class="soap-section soap-p"><div class="soap-label">P — Plan</div><div style="padding:8px;font-size:13px;">${soap.plan||'—'}</div></div>
+      <div style="margin-top:12px;font-size:12px;color:var(--text-dim);">
+        <strong>Chief Complaint:</strong> ${soap.chiefComplaint||'—'}<br>
+        <strong>ICD-10:</strong> ${Array.isArray(soap.icd10)?soap.icd10.join(', '):soap.icd10||'—'}<br>
+        <strong>CPT:</strong> ${soap.cpt||'—'}
+      </div>
+      <button class="btn btn-accent" style="margin-top:12px;" onclick="useGeneratedSOAP(${JSON.stringify(soap).replace(/"/g,'&quot;')})">✅ Use This SOAP Note</button>
+    </div>`;
+}
+
+function useGeneratedSOAP(soap){
+  // Store in session for the new encounter form
+  window._generatedSOAP=soap;
+  closeModal();
+  showNewEncounterModal();
+  // Fill in the fields after modal renders
+  setTimeout(()=>{
+    if(window._generatedSOAP){
+      const s=window._generatedSOAP;
+      document.getElementById('neCC').value=s.chiefComplaint||'';
+      document.getElementById('neS').value=s.subjective||'';
+      document.getElementById('neO').value=s.objective||'';
+      document.getElementById('neA').value=s.assessment||'';
+      document.getElementById('nePl').value=s.plan||'';
+      document.getElementById('neICD').value=Array.isArray(s.icd10)?s.icd10.join(', '):s.icd10||'';
+      document.getElementById('neCPT').value=s.cpt||'';
+      window._generatedSOAP=null;
+    }
+  },200);
+}
+
+// ═══════ E-PRESCRIBE PREP ═══════
+function showEPrescribeStatus(){
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>📝 E-Prescribe Integration</h3>
+    <div style="background:rgba(245,158,11,0.1);border:1px solid var(--warning);border-radius:8px;padding:16px;margin-bottom:16px;">
+      <div style="font-weight:600;color:var(--warning);margin-bottom:8px;">⚠️ Integration In Progress</div>
+      <p style="font-size:13px;color:var(--text-muted);">E-prescribing requires Surescripts certification. Current status:</p>
+    </div>
+    <div style="font-size:13px;line-height:2;">
+      <div>☐ Surescripts account registration</div>
+      <div>☐ NCPDP SCRIPT standard implementation</div>
+      <div>☐ Prescription routing certification</div>
+      <div>☐ EPCS (Controlled Substance) certification</div>
+      <div>☐ Pharmacy directory integration</div>
+      <div>☐ Medication history retrieval</div>
+      <div>☐ Formulary/eligibility checking</div>
+    </div>
+    <div style="margin-top:16px;padding:12px;background:var(--bg-input);border-radius:8px;">
+      <div style="font-weight:600;margin-bottom:8px;">Current Capability</div>
+      <p style="font-size:12px;color:var(--text-muted);">Prescriptions are saved locally and can be printed/faxed. Direct electronic transmission requires Surescripts integration.</p>
+    </div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+  `);
+}
 
 // ═══════ PATIENT TIMELINE ═══════
 function renderPatientTimeline(p){
