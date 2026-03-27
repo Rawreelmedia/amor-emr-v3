@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Amor Medical — EMR Platform v3</title>
+<title>Amor Medical — EMR Platform v3.1</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -202,7 +203,7 @@ select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='ht
       <div class="nav-item" onclick="navigate('credentialing')" data-nav="credentialing"><span class="icon">📜</span><span class="nav-label">Credentialing</span></div>
       <div class="nav-item" onclick="navigate('settings')" data-nav="settings"><span class="icon">⚙️</span><span class="nav-label">Settings</span></div>
     </div>
-    <div class="sidebar-footer"><span>Amor EMR v2.0</span> 💙</div>
+    <div class="sidebar-footer"><span>Amor EMR v3.1</span> 💙</div>
   </nav>
   <div class="main">
     <div class="topbar">
@@ -467,7 +468,7 @@ function openPatientDetail(id){
 function renderPatientDetail(c){
   const p=selectedPatient;if(!p){navigate('patients');return;}
   setPageTitle(p.firstName+' '+p.lastName);
-  const tabs=['demographics','history','medications','allergies','encounters','labs','vitals','billing'];
+  const tabs=['demographics','history','medications','allergies','encounters','labs','vitals','timeline','billing'];
   c.innerHTML=`
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn btn-ghost btn-sm" onclick="navigate('patients')">← Back</button>
@@ -489,6 +490,7 @@ function renderPatientTab(p){
     case 'encounters': return renderPatientEncounters(p);
     case 'labs': return renderPatientLabs(p);
     case 'vitals': return renderPatientVitals(p);
+    case 'timeline': return renderPatientTimeline(p);
     case 'billing': return '<div class="empty-state"><div class="empty-icon">💳</div><p>Billing integration pending — Stripe setup required</p></div>';
     default: return '';
   }
@@ -550,17 +552,44 @@ function renderPatientEncounters(p){
 }
 function renderPatientLabs(p){
   const labs=db.labOrders.filter(l=>l.patientId===p.id).sort((a,b)=>b.orderedDate.localeCompare(a.orderedDate));
-  if(!labs.length) return '<div class="empty-state"><div class="empty-icon">🔬</div><p>No lab orders</p></div>';
-  return labs.map(l=>{
+  if(!labs.length) return '<div class="empty-state"><div class="empty-icon">🔬</div><p>No lab orders</p><button class="btn btn-primary" onclick="showNewLabModal()">+ Order Labs</button></div>';
+  return `<button class="btn btn-primary" onclick="showNewLabModal()" style="margin-bottom:16px;">+ Order Labs</button>` + labs.map(l=>{
     const pv=db.providers.find(x=>x.id===l.providerId);
-    return `<div class="rx-card"><div style="display:flex;justify-content:space-between;"><div><div class="rx-name">${l.vendor} — ${l.tests.join(', ')}</div><div class="rx-sig">Ordered: ${l.orderedDate} by ${pv?pv.name:''}</div>${l.results?`<div style="margin-top:6px;font-size:12px;color:var(--accent);">${l.results}</div>`:''}</div><span class="badge ${l.status==='resulted'?'badge-green':l.status==='pending'?'badge-yellow':'badge-blue'}">${l.status}</span></div></div>`;
+    return `<div class="rx-card"><div style="display:flex;justify-content:space-between;"><div><div class="rx-name">${l.vendor} — ${l.tests.join(', ')}</div><div class="rx-sig">Ordered: ${l.orderedDate} by ${pv?pv.name:''} | Dx: ${l.icd10||'—'}</div>${l.results?`<div style="margin-top:6px;font-size:12px;padding:8px;background:var(--bg);border-radius:6px;color:var(--accent);white-space:pre-wrap;">${l.results}</div>`:''}</div><div style="text-align:right;"><span class="badge ${l.status==='resulted'||l.status==='reviewed'?'badge-green':l.status==='pending'?'badge-yellow':'badge-blue'}">${l.status}</span><br><button class="btn btn-ghost btn-sm" onclick="enterLabResults('${l.id}')" style="margin-top:8px;">📝 ${l.results?'Edit':'Enter'} Results</button></div></div></div>`;
   }).join('');
 }
 function renderPatientVitals(p){
-  const encs=db.encounters.filter(e=>e.patientId===p.id&&e.vitals).sort((a,b)=>b.date.localeCompare(a.date));
+  const encs=db.encounters.filter(e=>e.patientId===p.id&&e.vitals).sort((a,b)=>a.date.localeCompare(b.date));
   if(!encs.length) return '<div class="empty-state"><div class="empty-icon">📈</div><p>No vitals</p></div>';
-  return `<table class="data-table"><thead><tr><th>Date</th><th>BP</th><th>HR</th><th>Temp</th><th>SpO2</th><th>Weight</th><th>Height</th><th>BMI</th></tr></thead><tbody>
-    ${encs.map(e=>{const v=e.vitals;const bmi=v.weight&&v.height?(parseFloat(v.weight)/Math.pow(parseFloat(v.height)/39.37,2)).toFixed(1):'—';
+  
+  // Prepare chart data
+  const labels=encs.map(e=>e.date);
+  const weights=encs.map(e=>parseFloat(e.vitals.weight)||null);
+  const hrs=encs.map(e=>parseFloat(e.vitals.hr)||null);
+  const systolics=encs.map(e=>{const bp=e.vitals.bp;if(!bp)return null;const parts=bp.split('/');return parseFloat(parts[0])||null;});
+  const diastolics=encs.map(e=>{const bp=e.vitals.bp;if(!bp)return null;const parts=bp.split('/');return parseFloat(parts[1])||null;});
+  
+  setTimeout(()=>{
+    // Weight Chart
+    const wtCtx=document.getElementById('weightChart');
+    if(wtCtx){new Chart(wtCtx,{type:'line',data:{labels,datasets:[{label:'Weight (lbs)',data:weights,borderColor:'#0EA5E9',backgroundColor:'rgba(14,165,233,0.1)',fill:true,tension:0.3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:false}}}});}
+    // BP Chart
+    const bpCtx=document.getElementById('bpChart');
+    if(bpCtx){new Chart(bpCtx,{type:'line',data:{labels,datasets:[{label:'Systolic',data:systolics,borderColor:'#EF4444',tension:0.3},{label:'Diastolic',data:diastolics,borderColor:'#F59E0B',tension:0.3}]},options:{responsive:true,scales:{y:{min:50,max:200}}}});}
+    // HR Chart
+    const hrCtx=document.getElementById('hrChart');
+    if(hrCtx){new Chart(hrCtx,{type:'line',data:{labels,datasets:[{label:'Heart Rate',data:hrs,borderColor:'#10B981',backgroundColor:'rgba(16,185,129,0.1)',fill:true,tension:0.3}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:40,max:140}}}});}
+  },100);
+  
+  return `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+      <div class="stat-card"><h4 style="font-size:13px;margin-bottom:12px;">📊 Weight Trend</h4><canvas id="weightChart" height="150"></canvas></div>
+      <div class="stat-card"><h4 style="font-size:13px;margin-bottom:12px;">❤️ Blood Pressure Trend</h4><canvas id="bpChart" height="150"></canvas></div>
+    </div>
+    <div class="stat-card" style="margin-bottom:24px;"><h4 style="font-size:13px;margin-bottom:12px;">💓 Heart Rate Trend</h4><canvas id="hrChart" height="100"></canvas></div>
+    <h4 style="margin-bottom:12px;">📋 Vitals History</h4>
+    <table class="data-table"><thead><tr><th>Date</th><th>BP</th><th>HR</th><th>Temp</th><th>SpO2</th><th>Weight</th><th>Height</th><th>BMI</th></tr></thead><tbody>
+    ${encs.slice().reverse().map(e=>{const v=e.vitals;const bmi=v.weight&&v.height?(parseFloat(v.weight)/Math.pow(parseFloat(v.height)/39.37,2)).toFixed(1):'—';
     return `<tr><td>${e.date}</td><td>${v.bp||'—'}</td><td>${v.hr||'—'}</td><td>${v.temp||'—'}°F</td><td>${v.spo2||'—'}%</td><td>${v.weight||'—'}</td><td>${v.height||'—'}"</td><td>${bmi}</td></tr>`;}).join('')}</tbody></table>`;
 }
 function renderPatientRightPanel(rp){
@@ -1361,6 +1390,101 @@ function addPMH(id){const item=prompt('Enter past medical history item:');if(!it
 function removePMH(id,idx){const p=db.patients.find(x=>x.id===id);p.pmh.splice(idx,1);saveDB();render();}
 function addAllergy(id){const item=prompt('Enter allergy:');if(!item)return;const p=db.patients.find(x=>x.id===id);if(!p.allergies)p.allergies=[];p.allergies.push(item);saveDB();render();}
 function removeAllergy(id,idx){const p=db.patients.find(x=>x.id===id);p.allergies.splice(idx,1);saveDB();render();}
+
+// ═══════ PATIENT TIMELINE ═══════
+function renderPatientTimeline(p){
+  let events=[];
+  
+  // Add encounters
+  db.encounters.filter(e=>e.patientId===p.id).forEach(e=>{
+    const pv=db.providers.find(x=>x.id===e.providerId);
+    events.push({
+      date:e.date,
+      type:'encounter',
+      icon:e.type==='telehealth'?'💻':e.type==='phone'?'📞':'🏥',
+      title:`${e.noteType||'Visit'} — ${e.chiefComplaint}`,
+      subtitle:pv?pv.name:'',
+      detail:e.assessment||'',
+      status:e.status,
+      id:e.id
+    });
+  });
+  
+  // Add prescriptions
+  db.prescriptions.filter(rx=>rx.patientId===p.id).forEach(rx=>{
+    const pv=db.providers.find(x=>x.id===rx.providerId);
+    events.push({
+      date:rx.writtenDate,
+      type:'rx',
+      icon:'💊',
+      title:`${rx.medication} ${rx.dose}${rx.unit}`,
+      subtitle:`${rx.frequency} — ${pv?pv.name:''}`,
+      detail:rx.sig,
+      status:rx.status
+    });
+  });
+  
+  // Add labs
+  db.labOrders.filter(l=>l.patientId===p.id).forEach(l=>{
+    events.push({
+      date:l.orderedDate,
+      type:'lab',
+      icon:'🔬',
+      title:l.tests.join(', '),
+      subtitle:l.vendor,
+      detail:l.results||'Pending results',
+      status:l.status
+    });
+  });
+  
+  // Sort by date descending
+  events.sort((a,b)=>b.date.localeCompare(a.date));
+  
+  if(!events.length) return '<div class="empty-state"><div class="empty-icon">📅</div><p>No timeline events</p></div>';
+  
+  return `<h4 style="margin-bottom:16px;">📅 Patient Timeline</h4>
+    <div style="position:relative;padding-left:24px;border-left:2px solid var(--border);">
+    ${events.map(e=>`
+      <div style="position:relative;margin-bottom:20px;padding:12px;background:var(--bg-input);border-radius:8px;cursor:${e.type==='encounter'?'pointer':'default'};" ${e.type==='encounter'?`onclick="openEncounterDetail('${e.id}')"`:''}>
+        <div style="position:absolute;left:-32px;top:12px;width:20px;height:20px;background:var(--bg);border:2px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;">${e.icon}</div>
+        <div style="display:flex;justify-content:space-between;align-items:start;">
+          <div>
+            <div style="font-weight:600;font-size:14px;">${e.title}</div>
+            <div style="font-size:12px;color:var(--text-muted);">${e.subtitle}</div>
+            ${e.detail?`<div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${e.detail.substring(0,100)}${e.detail.length>100?'...':''}</div>`:''}
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:var(--text-dim);">${e.date}</div>
+            <span class="badge ${e.status==='signed'||e.status==='active'||e.status==='resulted'?'badge-green':e.status==='pending'?'badge-yellow':'badge-blue'}" style="margin-top:4px;">${e.status}</span>
+          </div>
+        </div>
+      </div>
+    `).join('')}
+    </div>`;
+}
+
+// ═══════ LAB RESULT ENTRY ═══════
+function enterLabResults(labId){
+  const lab=db.labOrders.find(l=>l.id===labId);
+  if(!lab)return;
+  showModal(`<button class="modal-close" onclick="closeModal()">✕</button>
+    <h3>🔬 Enter Lab Results</h3>
+    <p style="color:var(--text-muted);font-size:12px;margin-bottom:12px;">Tests: ${lab.tests.join(', ')}</p>
+    <div class="form-group"><label>Results</label><textarea id="labResults" rows="6" placeholder="A1C: 7.2%&#10;FBG: 126 mg/dL&#10;eGFR: 72 mL/min">${lab.results||''}</textarea></div>
+    <div class="form-group"><label>Status</label><select id="labStatus"><option value="pending" ${lab.status==='pending'?'selected':''}>Pending</option><option value="resulted" ${lab.status==='resulted'?'selected':''}>Resulted</option><option value="reviewed" ${lab.status==='reviewed'?'selected':''}>Reviewed</option></select></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button><button class="btn btn-primary" onclick="saveLabResults('${labId}')">Save Results</button></div>
+  `);
+}
+
+function saveLabResults(labId){
+  const lab=db.labOrders.find(l=>l.id===labId);
+  if(!lab)return;
+  lab.results=document.getElementById('labResults').value;
+  lab.status=document.getElementById('labStatus').value;
+  saveDB();
+  closeModal();
+  render();
+}
 
 // ═══════ ICD-10 CODES DATABASE ═══════
 const icd10Codes=[
